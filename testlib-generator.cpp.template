@@ -1,0 +1,1033 @@
+#if __clang__
+#include <algorithm>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <queue>
+#include <map>
+#include <set>
+
+typedef __int128 int128_t;
+#else
+#include <bits/stdc++.h>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+#include <ext/rope>
+
+using namespace __gnu_pbds;
+using namespace __gnu_cxx;
+
+__extension__ typedef __int128 int128_t;
+#endif
+
+using namespace std;
+
+#if ! __clang__
+#pragma GCC optimize("unroll-loops")
+#pragma GCC optimize("Ofast")
+#pragma GCC target("avx,avx2,fma")
+#endif
+
+#define ll long long
+#define version 1
+
+#define rep(i, size) for (int (i) = 0; (i) < (int)(size); (i)++)
+#define all(v) ((v).begin(), (v).end())
+
+/* -------------------------------------------------------------------------
+ *     REMOVE BELOW LINES IF YOU WANT TO PROVIDE ANSWER TO TESTER
+ * ------------------------------------------------------------------------- */
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <execinfo.h>
+
+#define WANDBOX true
+#define STRESSLIB false
+
+#define USE_NUM_OF_RETRY 1
+#define USE_BIGO_APPROXIMATE false
+#define USE_T_AS_NUMBER_OF_TESTCASES false
+
+using namespace std::chrono;
+
+void dump(int signum, siginfo_t* siginfo, void* context);
+
+namespace cp {
+class random_t;
+
+namespace gen {
+vector<pair<int, int>> graph(random_t& io, int n, int m);
+} // namespace gen
+
+class random_t {
+public:
+  random_t(ll seed = -1) : _seed{seed} {
+#if TESTLIB
+    _io = false;
+#else
+    _io = true;
+#endif
+
+    _cnt = 0;
+
+    if (seed < 0)
+      seed = rand();
+
+    reset();
+  }
+
+  bool &io() { return _io; }
+
+  void replay() {
+    _state = EReplay;
+    _idx = 0;
+
+    _output.clear();
+  }
+
+  void record() {
+    _state = ERecord;
+    _idx = 0;
+
+    _input.clear();
+    _output.clear();
+  }
+
+  void reset() {
+    _trace.clear();
+    _input.clear();
+    _output.clear();
+
+    _state = EUnknown;
+    _idx = 0;
+  }
+
+  vector<string> input() { return _input; }
+
+  string &output() { return _output; }
+
+  string &trace() { return _trace; }
+
+  template <typename Arg1> void trace(const char *name, Arg1 &&arg1) {
+    _trace += string(name + (name[0] == ' ')) + " = " + to_string(arg1) + "\n";
+  }
+
+  template <typename Arg1, typename... Args>
+  void trace(const char *names, Arg1 &&arg1, Args &&...args) {
+    const char *comma = strchr(names + 1, ',');
+
+    _trace += string(names + (names[0] == ' '), comma) + " = " +
+              to_string(arg1) + ", ";
+    trace(comma + 1, args...);
+  }
+
+  template <typename T> void write(T val) { _output += to_string(val); }
+
+  template <typename T> T linear(T from, T to, bool rec = true) {
+    return linear(from, to, T(1), rec);
+  }
+
+  template <typename T> T linear(T from, T to, T step, bool rec = true) {
+    if (_state == EReplay)
+      return T(stoll(_input[_idx++]));
+
+    _cnt += step;
+    return record(from + T(_cnt % (to - from)), rec);
+  }
+
+  template <typename T> T read(T n, bool rec = true) {
+    return read(n - n, n, rec);
+  }
+
+  template <typename T> T read(T from, T to, bool rec = true) {
+    if (_state == EReplay)
+      return T(stoll(_input[_idx++]));
+
+    return record((_io? 0: from) + generate(to - from), rec);
+  }
+
+  template <typename T> T next(T n) { return read(n, false); }
+
+  template <typename T> T next(T from, T to) { return read(from, to, false); }
+
+protected:
+  int128_t _multiplier = 0x5DEECE66DLL;
+  int128_t _addend = 0xBLL;
+  int128_t _mask = (1LL << 48) - 1;
+  int128_t _seed = 0x1234;
+
+private:
+  enum stat_t { EUnknown, EReplay, ERecord };
+
+  friend vector<pair<int, int>> gen::graph(random_t& io, int n, int m);
+
+  template <typename T> T record(T value, bool allow) {
+    if (_state == ERecord && allow)
+      _input.push_back(to_string(value));
+
+    return value;
+  }
+
+  template <typename T> T generate(T n) {
+    T ret;
+
+    if (_io) {
+      cin >> ret;
+    } else {
+      ll rand;
+
+      assert(n > 0);
+
+      if ((n & -n) == n) // n is a power of 2
+        ret = (T)((n * (ll)bits(31)) >> 31);
+      else {
+        do
+          rand = bits(31);
+        while (rand >= INT_MAX / n * n);
+
+        ret = T(rand % n);
+      }
+    }
+
+    return ret;
+  }
+
+  ll bits(int n) {
+    assert(n < 63);
+
+    if (n <= 48) {
+      return (ll)((_seed = (_seed * _multiplier + _addend) & _mask) >>
+                  (48 - n));
+    }
+
+    return (bits(31) << 32) ^ bits(version == 0 ? 31 : 32);
+  }
+
+  vector<string> _input;
+  string _output, _trace;
+  stat_t _state;
+  size_t _idx;
+  bool _io;
+  ll _cnt;
+};
+
+class pattern_t {
+public:
+  pattern_t(string s) : _s(s), _from(0), _to(0) {
+    string t;
+
+    for (size_t i = 0; i < s.length(); i++)
+      if (!__pattern_is_command_char(s, i, ' '))
+        t += s[i];
+
+    s = t;
+
+    int opened = 0;
+    int firstClose = -1;
+
+    vector<int> seps;
+
+    for (size_t i = 0; i < s.length(); i++) {
+      if (__pattern_is_command_char(s, i, '(')) {
+        opened++;
+        continue;
+      }
+
+      if (__pattern_is_command_char(s, i, ')')) {
+        opened--;
+
+        if (opened == 0 && firstClose == -1)
+          firstClose = int(i);
+        continue;
+      }
+
+      assert(opened >= 0);
+
+      if (__pattern_is_command_char(s, i, '|') && opened == 0)
+        seps.push_back(int(i));
+    }
+
+    assert(opened == 0);
+
+    if (seps.size() == 0 && firstClose + 1 == (int)s.length() &&
+        __pattern_is_command_char(s, 0, '(') &&
+        __pattern_is_command_char(s, s.length() - 1, ')')) {
+      _children.push_back(pattern_t(s.substr(1, s.length() - 2)));
+    } else {
+      if (seps.size() > 0) {
+        seps.push_back(int(s.length()));
+        int last = 0;
+
+        for (size_t i = 0; i < seps.size(); i++) {
+          _children.push_back(pattern_t(s.substr(last, seps[i] - last)));
+          last = seps[i] + 1;
+        }
+      } else {
+        size_t pos = 0;
+        _chars = __pattern_scan_charset(s, pos);
+        __pattern_scan_counts(s, pos, _from, _to);
+
+        if (pos < s.length())
+          _children.push_back(pattern_t(s.substr(pos)));
+      }
+    }
+  }
+
+  string next(random_t &rnd) const {
+    string result;
+
+    result.reserve(20);
+    assert(_to != INT_MAX);
+
+    if (_to > 0) {
+      int count = rnd.next(_to - _from + 1) + _from;
+
+      for (int i = 0; i < count; i++)
+        result += _chars[rnd.next(int(_chars.size()))];
+    }
+
+    if (_children.size() > 0)
+      result += _children[rnd.next(int(_children.size()))].next(rnd);
+
+    return result;
+  }
+
+  bool matches(const string &s) const { return matches(s, 0); }
+
+  string src() const { return _s; }
+
+private:
+  bool matches(const string &s, size_t pos) const {
+    string result;
+
+    if (_to > 0) {
+      int size = __pattern_greedy_match(_s, pos, _chars);
+
+      if (size < _from)
+        return false;
+
+      if (size > _to)
+        size = _to;
+      pos += size;
+    }
+
+    if (_children.size() > 0) {
+      for (size_t child = 0; child < _children.size(); child++)
+        if (_children[child].matches(s, pos))
+          return true;
+
+      return false;
+    } else
+      return pos == s.length();
+  }
+
+  static bool __pattern_is_slash(const string &s, size_t pos) {
+    return s[pos] == '\\';
+  }
+
+  static char __pattern_get_char(const string &s, size_t &pos) {
+    if (__pattern_is_slash(s, pos))
+      pos += 2;
+    else
+      pos++;
+
+    return s[pos - 1];
+  }
+
+  static void __pattern_scan_counts(const string &s, size_t &pos, int &from,
+                                    int &to) {
+    if (pos >= s.length()) {
+      from = to = 1;
+      return;
+    }
+
+    if (__pattern_is_command_char(s, pos, '{')) {
+      vector<string> parts;
+      string part;
+
+      pos++;
+
+      while (pos < s.length() && !__pattern_is_command_char(s, pos, '}')) {
+        if (__pattern_is_command_char(s, pos, ','))
+          parts.push_back(part), part = "", pos++;
+        else
+          part += __pattern_get_char(s, pos);
+      }
+
+      if (part != "")
+        parts.push_back(part);
+
+      assert(__pattern_is_command_char(s, pos, '}'));
+      pos++;
+
+      assert(!(parts.size() < 1 || parts.size() > 2));
+
+      vector<int> numbers;
+
+      for (size_t i = 0; i < parts.size(); i++) {
+        assert(parts[i].length() != 0);
+        int number;
+
+        assert(sscanf(parts[i].c_str(), "%d", &number) == 1);
+        numbers.push_back(number);
+      }
+
+      if (numbers.size() == 1)
+        from = to = numbers[0];
+      else
+        from = numbers[0], to = numbers[1];
+
+      assert(from <= to);
+    } else {
+      if (__pattern_is_command_char(s, pos, '?')) {
+        from = 0, to = 1, pos++;
+        return;
+      }
+
+      if (__pattern_is_command_char(s, pos, '*')) {
+        from = 0, to = INT_MAX, pos++;
+        return;
+      }
+
+      if (__pattern_is_command_char(s, pos, '+')) {
+        from = 1, to = INT_MAX, pos++;
+        return;
+      }
+
+      from = to = 1;
+    }
+  }
+
+  static vector<char> __pattern_scan_charset(const string &s, size_t &pos) {
+    assert(pos < s.length());
+
+    vector<char> result;
+
+    if (__pattern_is_command_char(s, pos, '[')) {
+      pos++;
+      bool negative = __pattern_is_command_char(s, pos, '^');
+      if (negative)
+        pos++;
+
+      char prev = 0;
+
+      while (pos < s.length() && !__pattern_is_command_char(s, pos, ']')) {
+        if (__pattern_is_command_char(s, pos, '-') && prev != 0) {
+          pos++;
+
+          if (pos + 1 == s.length() || __pattern_is_command_char(s, pos, ']')) {
+            result.push_back(prev);
+            prev = '-';
+            continue;
+          }
+
+          char next = __pattern_get_char(s, pos);
+
+          assert(prev <= next);
+
+          for (char c = prev; c != next; c++)
+            result.push_back(c);
+          result.push_back(next);
+
+          prev = 0;
+        } else {
+          if (prev != 0)
+            result.push_back(prev);
+          prev = __pattern_get_char(s, pos);
+        }
+      }
+
+      if (prev != 0)
+        result.push_back(prev);
+
+      assert(__pattern_is_command_char(s, pos, ']'));
+
+      pos++;
+
+      if (negative) {
+        sort(result.begin(), result.end());
+        vector<char> actuals;
+        for (int code = 0; code < 255; code++) {
+          char c = char(code);
+          if (!binary_search(result.begin(), result.end(), c))
+            actuals.push_back(c);
+        }
+        result = actuals;
+      }
+
+      sort(result.begin(), result.end());
+    } else
+      result.push_back(__pattern_get_char(s, pos));
+
+    return result;
+  }
+
+  static bool __pattern_is_command_char(const string &s, size_t pos,
+                                        char value) {
+    if (pos >= s.length())
+      return false;
+
+    int slashes = 0;
+
+    int before = int(pos) - 1;
+    while (before >= 0 && s[before] == '\\')
+      before--, slashes++;
+
+    return slashes % 2 == 0 && s[pos] == value;
+  }
+  static int __pattern_greedy_match(const string &s, size_t pos,
+                                    const vector<char> chars) {
+    int result = 0;
+
+    while (pos < s.length()) {
+      char c = s[pos++];
+
+      if (!binary_search(chars.begin(), chars.end(), c))
+        break;
+      else
+        result++;
+    }
+
+    return result;
+  }
+
+  string _s;
+  vector<pattern_t> _children;
+  vector<char> _chars;
+  int _from;
+  int _to;
+};
+
+class resolve_t {
+public:
+  // BigO is passed to a benchmark in order to specify the asymptotic
+  // computational complexity for the benchmark. In case oAuto is selected,
+  // complexity will be calculated automatically to the best fit.
+  enum BigO {
+    oNone,
+    o1,
+    oN,
+    oNSquared,
+    oNCubed,
+    oLogN,
+    oNLogN,
+    oAuto,
+    oLambda
+  };
+
+  // This data structure will contain the result returned by MinimalLeastSq
+  //   - coef        : Estimated coeficient for the high-order term as
+  //                   interpolated from data.
+  //   - rms         : Normalized Root Mean Squared Error.
+  //   - complexity  : Scalability form (e.g. oN, oNLogN). In case a scalability
+  //                   form has been provided to MinimalLeastSq this will return
+  //                   the same value. In case BigO::oAuto has been selected,
+  //                   this parameter will return the best fitting curve
+  //                   detected.
+  struct LeastSq {
+    LeastSq() : coef(0.0), rms(0.0), complexity(oNone) {}
+
+    double coef;
+    double rms;
+    BigO complexity;
+  };
+
+  resolve_t(string name, map<string, resolve_t *> &bundle) : _name{name} {
+#if !USE_SANITIZER
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(struct sigaction));
+
+    act.sa_flags = SA_SIGINFO;
+    act.sa_sigaction = dump;
+
+    if (sigaction(SIGSEGV, &act, nullptr) < 0) {
+      abort();
+    }
+#endif
+    bundle[name] = this;
+  }
+
+  void input(int n) { _n.push_back(n); }
+
+  void reset() {
+    _n.clear();
+    _t.clear();
+  }
+
+  void run_with_timer() {
+    using clock = std::chrono::high_resolution_clock;
+    using dsec = std::chrono::duration<double>;
+    using tps = std::chrono::time_point<clock, dsec>;
+
+    tps start = clock::now();
+
+    solve();
+    _t.push_back((tps(clock::now()) - start).count());
+  }
+
+  void run_without_timer() { solve(); }
+
+  vector<int> &N() { return _n; }
+
+  vector<double> &T() { return _t; }
+
+  static void verify(map<string, resolve_t *> &solutions, random_t &io) {
+    string result = "", spec = "";
+
+#if STRESSLIB
+#if defined(USE_BIGO_APPROXIMATE) && defined(USE_NUM_OF_RETRY)
+    int t = USE_NUM_OF_RETRY;
+#else
+    int t = -1;
+#endif
+
+    while (t--) {
+#endif
+      if (solutions.find("greedy") != solutions.end()) {
+        io.io() = false;
+        spec = "greedy";
+      } else if (solutions.find("output") != solutions.end()) {
+        io.io() = true;
+        spec = "output";
+      }
+
+      if (spec.size() > 0) {
+        io.record();
+
+        try {
+          solutions[spec]->run_without_timer();
+          result = io.output();
+        } catch (string &error) {
+          io.reset();
+        } catch (...) {
+          return;
+        }
+      }
+
+      for (auto item : solutions) {
+        if (get<0>(item) == "greedy")
+          continue;
+        else if (get<0>(item) == "output")
+          continue;
+
+        if (result.size() > 0)
+          io.replay();
+        else
+          io.record();
+
+        get<1>(item)->run_with_timer();
+
+        if (result.size() > 0) {
+#if !STRESSLIB
+          printf("----------------------------------------------\n");
+#endif
+
+          if (io.output() == result) {
+#if !STRESSLIB
+            printf("Pass {timming: %f (s)}\n", get<1>(item)->T().back());
+#endif
+            continue;
+          } else
+            printf("Fail\n");
+        }
+
+        if (io.trace().size() > 0)
+          printf("\ntrace:\n%s", io.trace().c_str());
+
+        printf("\ninput:\n");
+
+#if USE_INPUT_AS_ARRAY
+        printf("[");
+
+        for (auto i = 1u; i < io.input().size() - 1; i++)
+          printf("%s, ", io.input()[i].c_str());
+
+        printf("%s]", io.input().back().c_str());
+#else
+      for (auto val : io.input())
+        printf("%s ", val.c_str());
+#endif
+
+        printf("\n\noutput:\n%s", io.output().c_str());
+        printf("\nexpect:\n%s\n", result.c_str());
+        printf("\ntimming:\n%f (s)\n\n", get<1>(item)->T().back());
+
+#if STRESSLIB
+        return;
+#endif
+      }
+
+      io.reset();
+#if STRESSLIB
+    }
+
+#if USE_BIGO_APPROXIMATE
+    if (spec.length() > 0) {
+      printf("----------------------------------------------\n");
+
+      for (auto item : solutions) {
+        if (get<0>(item) == "greedy")
+          continue;
+        else if (get<0>(item) == "output")
+          continue;
+
+        auto lsq =
+            minimal_least_square(solutions[spec]->N(), get<1>(item)->T());
+        auto bigo = get_bigo_string(lsq.complexity);
+
+        printf("\n BigO(%s): %s\n", get<0>(item).c_str(), bigo.c_str());
+      }
+    }
+#endif
+#endif
+  }
+
+protected:
+  virtual void solve() = 0;
+
+private:
+  // Internal function to calculate the different scalability forms
+  static function<double(int)> fitting_curve(BigO complexity) {
+    switch (complexity) {
+    case oN:
+      return [](int n) -> double { return n; };
+    case oNSquared:
+      return [](int n) -> double { return n * n; };
+    case oNCubed:
+      return [](int n) -> double { return n * n * n; };
+    case oLogN:
+      return [](int n) { return std::log2(n); };
+    case oNLogN:
+      return [](int n) { return n * std::log2(n); };
+    case o1:
+    default:
+      return [](int) { return 1.0; };
+    }
+  }
+
+  // Function to return an string for the calculated complexity
+  static string get_bigo_string(BigO complexity) {
+    switch (complexity) {
+    case oN:
+      return "N";
+    case oNSquared:
+      return "N^2";
+    case oNCubed:
+      return "N^3";
+    case oLogN:
+      return "lgN";
+    case oNLogN:
+      return "NlgN";
+    case o1:
+      return "(1)";
+    default:
+      return "f(N)";
+    }
+  }
+
+  // Find the coefficient for the high-order term in the running time, by
+  // minimizing the sum of squares of relative error, for the fitting curve
+  // given by the lambda expresion.
+  //   - n             : Vector containing the size of the benchmark tests.
+  //   - time          : Vector containing the times for the benchmark tests.
+  //   - fitting_curve : lambda expresion (e.g. [](int n) {return n; };).
+  static LeastSq minimal_least_square(vector<int> &n, vector<double> &time,
+                                      function<double(int)> fitting_curve) {
+    double sigma_gn = 0.0;
+    double sigma_gn_squared = 0.0;
+    double sigma_time = 0.0;
+    double sigma_time_gn = 0.0;
+
+    // Calculate least square fitting parameter
+    for (size_t i = 0; i < n.size(); ++i) {
+      double gn_i = fitting_curve(n[i]);
+      sigma_gn += gn_i;
+      sigma_gn_squared += gn_i * gn_i;
+      sigma_time += time[i];
+      sigma_time_gn += time[i] * gn_i;
+    }
+
+    LeastSq result;
+    result.complexity = oLambda;
+
+    // Calculate complexity.
+    result.coef = sigma_time_gn / sigma_gn_squared;
+
+    // Calculate RMS
+    double rms = 0.0;
+    for (size_t i = 0; i < n.size(); ++i) {
+      double fit = result.coef * fitting_curve(n[i]);
+      rms += pow((time[i] - fit), 2);
+    }
+
+    // Normalized RMS by the mean of the observed values
+    double mean = sigma_time / double(n.size());
+    result.rms = sqrt(rms / double(n.size())) / mean;
+
+    return result;
+  }
+
+  static LeastSq minimal_least_square(vector<int> n, vector<double> time,
+                                      BigO complexity = oAuto) {
+    vector<BigO> fit_curves = {oLogN, oN, oNLogN, oNSquared, oNCubed};
+    LeastSq best_fit;
+
+    assert(n.size() == time.size());
+    assert(n.size() >= 2); // Do not compute fitting curve is less than two
+                           // benchmark runs are given
+    assert(complexity != oNone);
+
+    if (complexity == oAuto) {
+      // Take o1 as default best fitting curve
+      best_fit = minimal_least_square(n, time, fitting_curve(o1));
+      best_fit.complexity = o1;
+
+      // Compute all possible fitting curves and stick to the best one
+      for (const auto &fit : fit_curves) {
+        LeastSq current_fit = minimal_least_square(n, time, fitting_curve(fit));
+
+        if (current_fit.rms < best_fit.rms) {
+          best_fit = current_fit;
+          best_fit.complexity = fit;
+        }
+      }
+    } else {
+      best_fit = minimal_least_square(n, time, fitting_curve(complexity));
+      best_fit.complexity = complexity;
+    }
+
+    return best_fit;
+  }
+
+  string _name;
+  vector<int> _n;
+  vector<double> _t;
+};
+
+template <> string random_t::record<string>(string value, bool allow) {
+  if (_state == ERecord && allow)
+    _input.push_back(value);
+
+  return value;
+}
+
+template <> string random_t::read<string>(string pattern, bool rec) {
+  string ret;
+
+  if (_state == EReplay)
+    return _input[_idx++];
+  else if (_io)
+    std::cin >> ret;
+  else
+    ret = pattern_t{pattern}.next(*this);
+
+  return record(ret, rec);
+}
+
+template <>
+const char *random_t::read<const char *>(const char *pattern, bool rec) {
+  return strdup(read(string{pattern}, rec).c_str());
+}
+
+template <> void random_t::trace<string>(const char *name, string &&arg1) {
+  _trace += string(name + (name[0] == ' ')) + " = " + arg1 + "\n";
+}
+
+template <>
+void random_t::trace<const char *>(const char *name, const char *&&arg1) {
+  _trace += string(name + (name[0] == ' ')) + " = " + string(arg1) + "\n";
+}
+
+template <> void random_t::write<string>(string value) { _output += value; }
+
+template <> void random_t::write<const char *>(const char *value) {
+  _output += string{value};
+}
+
+namespace gen {
+vector<pair<int, int>> graph(cp::random_t& io, int n, int m) {
+  int i{0};
+  set<pair<int, int>> s;
+  vector<pair<int, int>> ret;
+
+  if (m > n*n)
+    return ret;
+
+  while(int(s.size()) < m) {
+    s.insert(make_pair<int, int>(io.read(n, false), io.read(n, false)));
+  }
+
+  ret.resize(m, make_pair(-1, -1));
+
+  for(auto it: s) {
+    ret[i++] = it;
+    io.record(it.first, true);
+    io.record(it.second, true);
+  }
+
+  return ret;
+}
+} // namespace gen
+} // namespace cp
+
+template <typename T> cp::random_t &operator>>(cp::random_t &in, T &buffer) {
+  buffer = in.read(T((1LL << (8 * sizeof(T) - 1LL)) - 1LL));
+  return in;
+}
+
+template <>
+cp::random_t &operator>><std::string>(cp::random_t &in, std::string &buffer) {
+  buffer = in.read("[a-zA-Z0-9]{0,10000}");
+  return in;
+}
+
+template <typename T> cp::random_t &operator<<(cp::random_t &out, T buffer) {
+  out.write(buffer);
+  return out;
+}
+
+#define TRACE(...) rnd.trace(#__VA_ARGS__, __VA_ARGS__)
+
+#define SOLVE(problem)                                                         \
+  namespace playground {                                                       \
+  class problem : cp::resolve_t {                                              \
+  public:                                                                      \
+    problem() : cp::resolve_t(#problem, solutions) {}                          \
+                                                                               \
+  private:                                                                     \
+    void solve() final;                                                        \
+  };                                                                           \
+  } /* namespace playground */                                                 \
+  static playground::problem _##problem{};                                     \
+  void playground::problem::solve()
+
+#define GREEDY() SOLVE(greedy)
+#define OUTPUT() SOLVE(output)
+
+static map<string, cp::resolve_t *> solutions;
+static cp::random_t rnd;
+
+void dump(int, siginfo_t*, void*) {
+#if __linux__
+  char** msgs = nullptr;
+#endif
+
+  void *array[100];
+  int size;
+
+  printf("Crashed at: \n");
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 100);
+
+#if __linux__
+  msgs = backtrace_symbols(array, size);
+
+  for (int i = 1; i < size; ++i) {
+    char syscom[256];
+    size_t p = 0;
+
+    /* find first occurence of '(' or ' ' in message[i] and assume
+     * everything before that is the file name. (Don't go beyond 0 though
+     * (string terminator)*/
+
+    while(msgs[i][p] != '(' && msgs[i][p] != ' ' && msgs[i][p] != 0)
+        ++p;
+
+    //last parameter is the file name of the symbol
+    sprintf(syscom,
+            "addr2line -f -p -e %s %p ", 
+            strndup(msgs[i], p),
+            array[i]);
+    system(syscom);
+  }
+#else
+  // print out all the frames to stderr
+  backtrace_symbols_fd(array, size, STDOUT_FILENO);
+#endif
+
+  if (rnd.trace().size() > 0)
+    printf("\ntrace:\n%s", rnd.trace().c_str());
+
+  printf("\ninput:\n");
+
+#if USE_INPUT_AS_ARRAY
+  printf("[");
+
+  for (auto i = 1u; i < rnd.input().size() - 1; i++)
+    printf("%s, ", rnd.input()[i].c_str());
+
+  printf("%s]", rnd.input().back().c_str());
+#else
+  for (auto val : rnd.input())
+    printf("%s ", val.c_str());
+#endif
+
+  printf("\n\noutput:\n%s", rnd.output().c_str());
+  exit(-1);
+}
+
+#define cin rnd
+#define cout rnd
+#define endl "\n"
+
+/* ---------------------------------------------------------------
+ *     REMOVE ABOVE LINES IF YOU WANT TO PROVIDE ANSWER TO TESTER
+ *
+ * @author      : Hung Nguyen Xuan Pham (hung0913208@gmail.com)
+ * @created     : Sunday Dec 12, 2021 06:21:17 +07
+ * @filename    : 
+ * --------------------------------------------------------------- */
+#if !WANDBOX
+#define SOLVE(problem) void solve()
+#define OUTPUT() void output()
+
+void solve();
+#endif
+
+int main() {
+  int t = 1;
+
+#if USE_T_AS_NUMBER_OF_TESTCASES
+#if WANDBOX
+  scanf("%d", &t);
+#else
+  std::ios::sync_with_stdio(false);
+  std::cin.tie(0);
+
+  std::cin >> t;
+#endif
+#endif
+
+  while (t--) {
+#if WANDBOX
+    cp::resolve_t::verify(solutions, rnd);
+#else
+    solve();
+#endif
+  }
+  return 0;
+}
+
+#if WANDBOX
+#if 0
+GREEDY() {
+}
+#else
+OUTPUT() {
+}
+#endif
+#endif
+
+SOLVE(CP_{{FILE}}) {
+  /* ----------------------------------------------------
+   * NOTE: Solution {{FILE}}
+   *
+   * @author      : {{NAME}} ({{EMAIL}})
+   * @created     : {{TIMESTAMP}}
+   * @filename    : {{FILE}}
+   * ----------------------------------------------------- */
+}
