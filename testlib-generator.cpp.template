@@ -123,7 +123,14 @@ public:
     trace(comma + 1, args...);
   }
 
-  template <typename T> void write(T val) { _output += to_string(val); }
+  template <typename T> T write(T val, bool to_buffer = false) { 
+    if (_state == ERecord && to_buffer)
+      record(val, true);
+    else 
+      _output += to_string(val); 
+
+    return val; 
+  }
 
   template <typename T> T linear(T from, T to, bool rec = true) {
     return linear(from, to, T(1), rec);
@@ -841,10 +848,21 @@ void random_t::trace<const char *>(const char *name, const char *&&arg1) {
   _trace += string(name + (name[0] == ' ')) + " = " + string(arg1) + "\n";
 }
 
-template <> void random_t::write<string>(string value) { _output += value; }
+template <> string random_t::write<string>(string val, bool to_buffer) { 
+  if (_state == ERecord && to_buffer)
+    record(val, to_buffer);
+  else 
+    _output += val;
+  return val; 
+}
 
-template <> void random_t::write<const char *>(const char *value) {
-  _output += string{value};
+template <> const char* random_t::write<const char *>(const char *val, 
+                                                      bool to_buffer) {
+  if (_state == ERecord && to_buffer)
+    record(string{val}, to_buffer);
+  else 
+    _output += string{val};
+  return val;
 }
 
 namespace gen {
@@ -904,8 +922,8 @@ template <typename T> cp::random_t &operator<<(cp::random_t &out, T buffer) {
   static playground::problem _##problem{};                                     \
   void playground::problem::solve()
 
-#define GREEDY() SOLVE(greedy)
-#define OUTPUT() SOLVE(output)
+#define RANDOM() SOLVE(greedy)
+#define INTERACT() SOLVE(output)
 
 static map<string, cp::resolve_t *> solutions;
 static cp::random_t rnd;
@@ -942,7 +960,7 @@ void dump(int, siginfo_t*, void*) {
             "addr2line -f -p -e %s %p ", 
             strndup(msgs[i], p),
             array[i]);
-    system(syscom);
+    exit(system(syscom));
   }
 #else
   // print out all the frames to stderr
@@ -975,15 +993,62 @@ void dump(int, siginfo_t*, void*) {
 #define endl "\n"
 
 /* ---------------------------------------------------------------
- *     REMOVE ABOVE LINES IF YOU WANT TO PROVIDE ANSWER TO TESTER
- *
  * @author      : Hung Nguyen Xuan Pham (hung0913208@gmail.com)
  * @created     : Sunday Dec 12, 2021 06:21:17 +07
- * @filename    : 
- * --------------------------------------------------------------- */
+ * @modified    : Saturday Jan 01, 2022 06:30:16 +07
+ * @description : This is an template for doing competitive programing
+ *                only with benchmark test and regression test. It
+ *                base on testlib repository and allow you to find 
+ *                corner cases automatically with the idea of using a
+ *                random generator to mass produce multiple test cases.
+ * @Api         :
+ *  - read/next : read from resource data with specific type
+ *                Ex: read and record value to buffer, this is default
+ *                    + rnd.read(10)
+ *                    + rnd.read(1, 10)
+ *                    + rnd.read("[a-zA-Z0-9]{1,1000}")
+ *                Ex: read but don't record the value to our buffer
+ *                    + rnd.read(10, false)
+ *                    + rnd.read(1, 10, false)
+ *                    + rnd.read("[a-zA-Z0-9]{1,1000}", false)
+ *  - write     : write to buffer or output with specific type
+ *                Ex: write data to output, mostly use to answer
+ *                    + rnd.write(10)
+ *                    + rnd.write("hello")
+ *                Ex: write data to buffer
+ *                    + rnd.write(10, true)
+ *                    + rnd.write("hello", true)
+ *  - linear    : read from resource without randomize feature
+ *                Ex: 
+ *                    + rnd.linear(0, 10)
+ *                    + rnd.linear(0, 10, false)
+ *                    + rnd.linear(0, 10, 2)
+ *                    + rnd.linear(0, 10, 2, false)
+ * @Macro       :
+ *  - TRACE     : write debug during testing only
+ *                Ex: TRACE(x, y, z)
+ *  - RANDOM    : this will be used to define place for generate test case and
+ *                the output of this specific test
+ *                Ex: 
+ *                  RANDOM() {
+ *                    int a = rnd.read(10), b = rnd.read(200);
+ *                    rnd.write(a + b);
+ *                  }
+ *  - INTERACT  : this will be used to define place for reading test case from
+ *                standard input and put it into our test case for customize
+ *                specific test
+ *                Ex: 
+ *                  INTERACT() {
+ *                    int a = rnd.read(10), b = rnd.read(200);
+ *                    rnd.write(a + b);
+ *                  }
+ *
+ *     REMOVE ABOVE LINES IF YOU WANT TO PROVIDE ANSWER TO TESTER */
+
 #if !WANDBOX
 #define SOLVE(problem) void solve()
-#define OUTPUT() void output()
+#define INTERACT() void interact()
+#define TRACE(...) 
 
 void solve();
 #endif
@@ -1014,10 +1079,10 @@ int main() {
 
 #if WANDBOX
 #if 0
-GREEDY() {
+RANDOM() {
 }
 #else
-OUTPUT() {
+INTERACT() {
 }
 #endif
 #endif
